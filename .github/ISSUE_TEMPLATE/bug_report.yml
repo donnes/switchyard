@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a link that opened in the wrong place, or something else that's broken.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues first, and keep the report to one problem.
+  - type: input
+    id: version
+    attributes:
+      label: Switchyard version
+      description: Shown in Finder's Get Info for Switchyard.app, or the commit you built.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "26.1"
+    validations:
+      required: true
+  - type: input
+    id: browsers
+    attributes:
+      label: Browsers involved
+      description: The browser and profile or container the link should have opened in, and where it went.
+      placeholder: Zen, Work container
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Click a link in ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead? The menu bar's recent links and Try a link in settings often show why.
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Rules
+      description: The rules from ~/.config/switchyard/config.json that should have caught the link. Remove anything private.
+      render: json

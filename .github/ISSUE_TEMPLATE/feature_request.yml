@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose a change to what Switchyard does.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Which links can't you route today, or what takes too long?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should Switchyard do, in settings and in config.json?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you tried
