@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # A required check can't use paths-ignore: a workflow that never starts
+  # leaves the check pending. A job skipped by its `if` passes instead.
+  changes:
+    name: Changed files
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.files.outputs.code }}
+    steps:
+      - id: files
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Files that no build or test of the app reads. The icon is
+            // compiled from assets/app-icon.icon, so that folder counts.
+            const docs = /(\.md$|^public\/|^assets\/(?!app-icon\.icon\/)|^LICENSE$)/;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+            const code = files.some((file) => !docs.test(file.filename));
+            core.info(`${files.length} files, code changed: ${code}`);
+            core.setOutput("code", code);
+
+  macos:
+    name: macOS
+    needs: changes
+    # Pushes to main skip `changes` and always run.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    # Swift 6.2 and actool's Icon Composer support come with Xcode 26.
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: apps/macos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build --build-tests -Xswiftc -warnings-as-errors
+      - name: Tests
+        run: swift test -Xswiftc -warnings-as-errors
+      - name: App bundle
+        run: scripts/release 0.0.0-ci

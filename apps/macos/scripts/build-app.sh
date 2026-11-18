@@ -1,6 +1,7 @@
 #!/bin/sh
 # Builds build/Switchyard.app with SwiftPM and registers it with Launch Services.
 # Usage: scripts/build-app.sh [release|debug]
+# scripts/release sets SWITCHYARD_VERSION, like 0.1.0 or 0.1.1-nightly.20261118.4, to stamp the bundle.
 set -eu
 cd "$(dirname "$0")/.."
 config=${1:-release}
@@ -31,6 +32,13 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin/Switchyard" "$app/Contents/MacOS/Switchyard"
 cp Support/Info.plist "$app/Contents/Info.plist"
+if [ -n "${SWITCHYARD_VERSION:-}" ]; then
+  # Finder shows the short version; a nightly's date and run number go in the build number.
+  /usr/libexec/PlistBuddy \
+    -c "Set :CFBundleShortVersionString ${SWITCHYARD_VERSION%%-*}" \
+    -c "Set :CFBundleVersion $(echo "$SWITCHYARD_VERSION" | sed 's/-nightly\./\./')" \
+    "$app/Contents/Info.plist"
+fi
 mv "$icon/Assets.car" "$icon/app-icon.icns" "$app/Contents/Resources/"
 rm -rf "$icon"
 codesign --force --sign - "$app"

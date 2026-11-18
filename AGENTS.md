@@ -48,7 +48,7 @@ The most common defect is a change that works on the path you tested and is miss
 
 - `apps/macos/Sources/SwitchyardCore` is Foundation only, so it tests without AppKit. `Config` is the file format, `URLPattern` the pattern rules, `Router` picks the rule, `Browsers` knows each browser family and reads their profiles and containers, and `LaunchPlan` turns a target into the concrete way to open a link.
 - `apps/macos/Sources/Switchyard` is the app. `main.swift` starts a plain `NSApplication` with no SwiftUI lifecycle. `AppDelegate` receives links and keeps recent ones, `ConfigStore` loads, watches and saves the config, `Launcher` runs launch plans through NSWorkspace and caches profiles, `ArdiaControl` speaks Ardia's control socket, `StatusItemController` is the menu bar icon and menu, and `AppCatalog` names apps and lists browsers. `Settings/` is the SwiftUI window: `SettingsView` with Try a link, `RuleEditor` with the shared target fields, and `SettingsWindowController`, which creates and drops the window.
-- `apps/macos/Tests` holds the core tests, `Support/Info.plist` the bundle's plist, and `scripts/build-app.sh` assembles the app bundle.
+- `apps/macos/Tests` holds the core tests, `Support/Info.plist` the bundle's plist, and `scripts/build-app.sh` assembles the app bundle. `scripts/release` signs, notarizes and packs it into a disk image, and `.github/workflows/release.yml` runs it to publish nightlies from `main` and stable releases on demand.
 - `assets/` holds the app icon's Icon Composer project, the flat logo and the PNG `scripts/icons` exports. See `assets/README.md`.
 - `docs/config.md` is the config format.
 

@@ -17,6 +17,10 @@ Switchyard is a link router for macOS. Make it your default browser, and each li
 > [!NOTE]
 > Switchyard is experimental and needs macOS 26 or later. An Omarchy (Linux) app sharing the same config is planned.
 
+## Install
+
+Download the disk image from the [latest release](https://github.com/donnes/switchyard/releases/latest), open it and drag Switchyard to Applications. Releases are signed and notarized, for Apple silicon Macs. [Nightlies](https://github.com/donnes/switchyard/releases) ship from `main` as prereleases.
+
 ## Build and run
 
 Building needs Xcode 26 or newer selected with `xcode-select`, because `actool` compiles the icon.
@@ -27,7 +31,7 @@ swift test                   # core tests
 scripts/build-app.sh         # builds and registers build/Switchyard.app
 ```
 
-Copy `build/Switchyard.app` to `/Applications` and open it. macOS remembers the default browser and the login item by the app's location, so a copy that a rebuild replaces can leave stale entries.
+To use your build, copy `build/Switchyard.app` to `/Applications` and open it. macOS remembers the default browser and the login item by the app's location, so a copy that a rebuild replaces can leave stale entries.
 
 From the menu bar icon, pick "Make Switchyard the Default Browser…" (macOS asks you to confirm) and turn on "Open at Login", so the first link after a restart doesn't wait for Switchyard to start. Opening the app again from Finder, Spotlight or Raycast shows its settings.
 
