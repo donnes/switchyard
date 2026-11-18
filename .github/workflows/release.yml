@@ -1,12 +1,11 @@
 name: Release
 
-# A nightly ships from main when commits landed since the last one and that
-# one is at least six hours old. A merge to main checks right away; the
-# schedule catches merges that landed inside those six hours.
-# Both channels run on demand from the Actions tab.
-# Stable creates the vX.Y.Z tag on the commit it built, and needs the signing secrets.
+# Run from the Actions tab or with
+#   gh workflow run release.yml -f version=0.2.0
+# It builds main, signs and notarizes the disk image, and publishes it as
+# vX.Y.Z on the commit it built.
 #
-# Signing and notarizing use these secrets. Without them a nightly is ad hoc signed.
+# Signing and notarizing use these secrets:
 #   CSC_LINK           base64 of the Developer ID Application .p12
 #   CSC_KEY_PASSWORD   the .p12's password
 #   APPLE_API_KEY      contents of the App Store Connect .p8
@@ -16,112 +15,67 @@ name: Release
 # OPENROUTER_API_KEY, optional, has Claude summarize the changes in the notes.
 
 on:
-  push:
-    branches: [main]
-  schedule:
-    # GitHub starts scheduled runs hours late or drops most of them, so a
-    # merge can't wait on one. Minute zero is the busiest. Most runs stop in
-    # Prepare.
-    - cron: "8,38 * * * *"
   workflow_dispatch:
     inputs:
-      channel:
-        description: Channel
-        type: choice
-        options: [nightly, stable]
-        default: nightly
       version:
-        description: Stable version, like 0.2.0. Empty is one patch past the last stable.
+        description: Version, like 0.2.0. Empty is one patch past the last release.
         type: string
 
 permissions:
   contents: read
 
-# Nightlies queue behind each other, so a waiting run sees the nightly before
-# it and skips. Without queue: max, GitHub keeps one waiting run and cancels
-# the rest. Stable has its own group, so a nightly never displaces it.
 concurrency:
-  group: release-${{ inputs.channel == 'stable' && 'stable' || 'nightly' }}
+  group: release
   cancel-in-progress: false
-  queue: max
 
 jobs:
   prepare:
     name: Prepare
     runs-on: ubuntu-latest
     outputs:
-      channel: ${{ steps.plan.outputs.channel }}
       version: ${{ steps.plan.outputs.version }}
       previous_tag: ${{ steps.plan.outputs.previous_tag }}
-      due: ${{ steps.plan.outputs.due }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: plan
         env:
-          GH_TOKEN: ${{ github.token }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
-          CHANNEL: ${{ inputs.channel || 'nightly' }}
-          STABLE_VERSION: ${{ inputs.version }}
+          VERSION: ${{ inputs.version }}
         run: |
           if [[ "$GITHUB_REF" != refs/heads/main ]]; then
             echo "::error::Releases build from main, not $GITHUB_REF."
             exit 1
           fi
-          plist_version=$(grep -A1 '<key>CFBundleShortVersionString</key>' apps/macos/Support/Info.plist | sed -n 's/.*<string>\(.*\)<\/string>.*/\1/p')
-          latest=$(git tag --list 'v*' --sort=-v:refname | grep -v -x -e 'v.*-nightly\..*' | head -1 || true)
-          # Info.plist only names the first release. Nightlies count from the
-          # next patch, so one always sorts after the stable before it.
-          next=$plist_version
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -1)
+          # Info.plist names the first release; later ones default to the next patch.
+          next=$(grep -A1 '<key>CFBundleShortVersionString</key>' apps/macos/Support/Info.plist | sed -n 's/.*<string>\(.*\)<\/string>.*/\1/p')
           if [[ -n "$latest" ]]; then
             IFS=. read -r major minor patch <<< "${latest#v}"
             next=$major.$minor.$((patch + 1))
           fi
-          due=true
-          if [[ "$CHANNEL" == stable ]]; then
-            channel=stable
-            version=${STABLE_VERSION:-$next}
-            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "::error::\"$version\" isn't a version like 0.2.0."
-              exit 1
-            fi
-            if git rev-parse --quiet --verify "refs/tags/v$version" >/dev/null; then
-              echo "::error::v$version is already released."
-              exit 1
-            fi
-            if [[ -z "$CSC_LINK" ]]; then
-              echo "::error::A stable release must be signed and notarized, and the signing secrets aren't set."
-              exit 1
-            fi
-            previous=$latest
-          else
-            channel=nightly
-            version=$next-nightly.$(date -u +%Y%m%d).$GITHUB_RUN_NUMBER
-            previous=$(git tag --list 'v*-nightly.*' --sort=-v:refname | head -1 || true)
-            if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch && -n "$previous" ]]; then
-              published=$(gh release view "$previous" --json publishedAt --jq .publishedAt)
-              age=$(( $(date -u +%s) - $(date -u -d "$published" +%s) ))
-              if [[ -z "$(git rev-list -n 1 "$previous..HEAD")" ]]; then
-                echo "Nothing landed since $previous."
-                due=false
-              elif (( age < 6 * 3600 )); then
-                echo "$previous shipped less than six hours ago."
-                due=false
-              fi
-            fi
+          version=${VERSION:-$next}
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::\"$version\" isn't a version like 0.2.0."
+            exit 1
+          fi
+          if git rev-parse --quiet --verify "refs/tags/v$version" >/dev/null; then
+            echo "::error::v$version is already released."
+            exit 1
+          fi
+          if [[ -z "$CSC_LINK" ]]; then
+            echo "::error::A release must be signed and notarized, and the signing secrets aren't set."
+            exit 1
           fi
           {
-            echo "channel=$channel"
             echo "version=$version"
-            echo "previous_tag=$previous"
-            echo "due=$due"
+            echo "previous_tag=$latest"
           } >> "$GITHUB_OUTPUT"
 
   check:
     name: macOS
     needs: prepare
-    if: needs.prepare.outputs.due == 'true'
     runs-on: macos-26
     defaults:
       run:
@@ -137,26 +91,18 @@ jobs:
     name: Build
     needs: [prepare, check]
     runs-on: macos-26
-    outputs:
-      signed: ${{ steps.signing.outputs.signed }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       # This job holds the signing key, so it runs no third-party action and
       # restores no cache.
-      - id: signing
-        name: Load the signing certificate
+      - name: Load the signing certificate
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
         run: |
-          if [[ -z "$CSC_LINK" ]]; then
-            echo "::warning::The signing secrets aren't set, so this build is ad hoc signed and not notarized."
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           keychain=$RUNNER_TEMP/signing.keychain-db
           password=$(openssl rand -hex 16)
           security create-keychain -p "$password" "$keychain"
@@ -172,7 +118,6 @@ jobs:
             echo "SWITCHYARD_SIGN_IDENTITY=Developer ID Application"
             echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8"
           } >> "$GITHUB_ENV"
-          echo "signed=true" >> "$GITHUB_OUTPUT"
       - env:
           VERSION: ${{ needs.prepare.outputs.version }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
@@ -213,28 +158,17 @@ jobs:
           path: dist
       - env:
           GH_TOKEN: ${{ github.token }}
-          CHANNEL: ${{ needs.prepare.outputs.channel }}
           VERSION: ${{ needs.prepare.outputs.version }}
           PREVIOUS_TAG: ${{ needs.prepare.outputs.previous_tag }}
-          SIGNED: ${{ needs.build.outputs.signed }}
         run: |
           notes=$RUNNER_TEMP/notes.md
-          args=("v$VERSION" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Switchyard $VERSION")
+          args=("v$VERSION" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Switchyard $VERSION" --latest)
           if [[ -f "$notes" ]]; then
-            if [[ "$SIGNED" != true ]]; then
-              warning="This build isn't notarized, so macOS blocks it. After copying it to Applications, run \`xattr -d com.apple.quarantine /Applications/Switchyard.app\`."
-              printf '%s\n\n%s\n' "$warning" "$(cat "$notes")" > "$notes"
-            fi
             args+=(--notes-file "$notes")
           else
             args+=(--generate-notes)
             if [[ -n "$PREVIOUS_TAG" ]]; then
               args+=(--notes-start-tag "$PREVIOUS_TAG")
             fi
-          fi
-          if [[ "$CHANNEL" == nightly ]]; then
-            args+=(--prerelease --latest=false)
-          else
-            args+=(--latest)
           fi
           gh release create "${args[@]}"

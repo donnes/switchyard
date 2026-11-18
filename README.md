@@ -19,7 +19,7 @@ Switchyard is a link router for macOS. Make it your default browser, and each li
 
 ## Install
 
-Download the disk image from the [latest release](https://github.com/donnes/switchyard/releases/latest), open it and drag Switchyard to Applications. Releases are signed and notarized, for Apple silicon Macs. [Nightlies](https://github.com/donnes/switchyard/releases) ship from `main` as prereleases.
+Download the disk image from the [latest release](https://github.com/donnes/switchyard/releases/latest), open it and drag Switchyard to Applications. Releases are signed and notarized, for Apple silicon Macs.
 
 ## Build and run
 

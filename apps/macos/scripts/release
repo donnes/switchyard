@@ -20,8 +20,8 @@ identity=${SWITCHYARD_SIGN_IDENTITY:--}
 SWITCHYARD_VERSION=$version scripts/build-app.sh release >/dev/null
 app=build/Switchyard.app
 
-# Notarization requires the hardened runtime. Ad hoc builds use it too, so a
-# nightly fails here the same way a signed release would.
+# Notarization requires the hardened runtime. Ad hoc builds use it too, so CI
+# fails here the same way a signed release would.
 if [[ "$identity" == - ]]; then
   codesign --force --options runtime --timestamp=none --sign - "$app"
 else
@@ -30,8 +30,8 @@ fi
 codesign --verify --strict "$app"
 
 reported=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$app/Contents/Info.plist")
-if [[ "$reported" != "${version%%-*}" ]]; then
-  echo "the app says it's $reported, expected ${version%%-*}" >&2
+if [[ "$reported" != "$version" ]]; then
+  echo "the app says it's $reported, expected $version" >&2
   exit 1
 fi
 

@@ -57,4 +57,4 @@ jobs:
       - name: Tests
         run: swift test -Xswiftc -warnings-as-errors
       - name: App bundle
-        run: scripts/release 0.0.0-ci
+        run: scripts/release 0.0.0
