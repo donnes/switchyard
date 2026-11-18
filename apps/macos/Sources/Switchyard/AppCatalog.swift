@@ -26,7 +26,7 @@ enum AppCatalog {
         if let profile = target.profile, !profile.isEmpty { parts.append(profile) }
         if let container = target.container, !container.isEmpty { parts.append("\(container) container") }
         if target.background == true { parts.append("background") }
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: " • ")
     }
 
     /// Apps that can open web links, except Switchyard.

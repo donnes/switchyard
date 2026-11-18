@@ -48,6 +48,7 @@ struct SettingsView: View {
                 if isDefault {
                     Label("Default Browser", systemImage: "checkmark.circle")
                         .labelStyle(.titleAndIcon)
+                        .padding(.trailing, 8)
                         .help("Links from other apps come to Switchyard first.")
                 } else {
                     Button("Make Default Browser…") {
@@ -57,6 +58,8 @@ struct SettingsView: View {
                     .help("Links from other apps won't reach Switchyard until it's the default browser.")
                 }
             }
+            // The status label is plain text. A glass capsule makes it look like a button and clips its title.
+            .sharedBackgroundVisibility(isDefault ? .hidden : .automatic)
             ToolbarSpacer(.fixed, placement: .primaryAction)
             ToolbarItem(placement: .primaryAction) {
                 Button("Add Rule", systemImage: "plus") {
@@ -123,11 +126,9 @@ struct RuleRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                if let name = rule.name, !name.isEmpty {
-                    Text(name)
-                }
+                title
                 Text(summary)
-                    .foregroundStyle(rule.name?.isEmpty == false ? .secondary : .primary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(3)
             }
             .opacity(rule.enabled ? 1 : 0.5)
@@ -162,10 +163,16 @@ struct RuleRow: View {
 
     private var index: Int? { store.config.rules.firstIndex { $0.id == rule.id } }
 
+    private var title: Text {
+        let target = AppCatalog.label(for: rule.open)
+        guard let name = rule.name, !name.isEmpty else { return Text(target) }
+        return Text("\(name) \(Text("→ \(target)").foregroundStyle(.secondary))")
+    }
+
     private var summary: String {
         let apps = rule.from.isEmpty ? "Any app" : rule.from.map(AppCatalog.name(for:)).joined(separator: ", ")
         let links = rule.match.isEmpty ? "any link" : rule.match.joined(separator: ", ")
-        return "\(apps) · \(links) → \(AppCatalog.label(for: rule.open))"
+        return "\(apps) · \(links)"
     }
 
     private func change(_ edit: @escaping (inout Rule) -> Void) {
