@@ -27,19 +27,19 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     /// The app icon's fork (assets/app-icon.icon/Assets/fork.svg) at menu bar size: the same 5 × 5 grid
-    /// and diagonal fade, as a template so the menu bar tints it. Squares are 3 pt on a 3.5 pt pitch,
-    /// which lands on whole pixels at 2x.
+    /// and diagonal fade, as a template so the menu bar tints it. Squares are 2.5 pt on a 3 pt pitch, so
+    /// the fork is about as tall as the system's 14 pt icons. The 15 pt canvas keeps it on whole pixels at 2x.
     private static let fork: NSImage = {
         let rows = ["X...X",
                     "XX.XX",
                     ".XXX.",
                     "..X..",
                     "..X.."]
-        let image = NSImage(size: NSSize(width: 17, height: 17), flipped: true) { _ in
+        let image = NSImage(size: NSSize(width: 15, height: 15), flipped: true) { _ in
             for (r, line) in rows.enumerated() {
                 for (c, cell) in line.enumerated() where cell == "X" {
                     NSColor.black.withAlphaComponent(1 - 0.8 * CGFloat(c + r) / 8).setFill()
-                    NSRect(x: CGFloat(c) * 3.5, y: CGFloat(r) * 3.5, width: 3, height: 3).fill()
+                    NSRect(x: CGFloat(c) * 3, y: CGFloat(r) * 3, width: 2.5, height: 2.5).fill()
                 }
             }
             return true
