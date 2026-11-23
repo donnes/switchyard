@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var recent: [RecentLink] = []
     private var statusItem: StatusItemController?
     private var settings: SettingsWindowController?
+    private var updater: UpdateController?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // The link that launched Switchyard arrives before applicationDidFinishLaunching, so the rules load first.
@@ -86,5 +87,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settings = SettingsWindowController(store: store) { [weak self] in self?.settings = nil }
         }
         settings?.show()
+    }
+
+    func checkForUpdates() {
+        if let updater {
+            updater.bringToFront()
+            return
+        }
+        let controller = UpdateController(
+            openURL: { [weak self] url in self?.openExternalURL(url) },
+            onFinish: { [weak self] in self?.updater = nil }
+        )
+        updater = controller
+        controller.checkForUpdates()
+    }
+
+    private func openExternalURL(_ url: URL) {
+        if AppCatalog.isDefaultBrowser {
+            route(url, source: .current)
+        } else {
+            NSWorkspace.shared.open(url)
+        }
     }
 }

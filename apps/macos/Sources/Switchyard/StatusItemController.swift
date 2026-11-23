@@ -84,6 +84,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let login = action("Open at Login", #selector(toggleOpenAtLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(login)
+        menu.addItem(action("Check for Updates…", #selector(checkForUpdates)))
         menu.addItem(.separator())
         menu.addItem(action("Quit Switchyard", #selector(quit), key: "q"))
     }
@@ -97,6 +98,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func makeDefault() { AppCatalog.becomeDefaultBrowser() }
     @objc private func openSettings() { app.showSettings() }
     @objc private func editConfig() { NSWorkspace.shared.open(app.store.url) }
+    @objc private func checkForUpdates() { app.checkForUpdates() }
     @objc private func quit() { NSApp.terminate(nil) }
 
     /// Running from login keeps the first link after a restart from waiting for Switchyard to start.
