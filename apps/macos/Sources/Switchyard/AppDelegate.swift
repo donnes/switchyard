@@ -47,29 +47,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let text = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
               let link = URL(string: text) else { return }
         let pid = event.attributeDescriptor(forKeyword: keySenderPIDAttr)?.int32Value ?? 0
-        let source = pid > 0 ? NSRunningApplication(processIdentifier: pid) : nil
-        route(link, source: source)
+        route(link, senderPID: pid)
     }
 
     /// Local .html files, when Switchyard is the default for them.
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        route(URL(filePath: filename), source: nil)
+        route(URL(filePath: filename), senderPID: 0)
         return true
     }
 
-    func route(_ link: URL, source: NSRunningApplication?) {
+    func route(_ link: URL, senderPID: pid_t) {
         let started = ContinuousClock.now
-        let sourceID = source?.bundleIdentifier
-        let decision = store.router.decide(url: link, from: sourceID)
+        let source = LinkSource(senderPID: senderPID)
+        let decision = store.router.decide(url: link, from: source.bundleID)
         let target = decision.target.browser == Bundle.main.bundleIdentifier ? Target(browser: "com.apple.Safari") : decision.target
 
         launcher.launch(link, target: target) { [weak self] problem in
             let elapsed = ContinuousClock.now - started
-            log.info("\(sourceID ?? "unknown", privacy: .public) -> \(target.browser, privacy: .public) [rule \(decision.ruleID ?? "fallback", privacy: .public)] in \(elapsed, privacy: .public)")
+            log.info("\(source, privacy: .public) -> \(target.browser, privacy: .public) [rule \(decision.ruleID ?? "fallback", privacy: .public)] in \(elapsed, privacy: .public)")
             if let problem { log.error("\(problem, privacy: .public)") }
             self?.remember(RecentLink(
                 link: link,
-                source: source?.localizedName ?? "Unknown app",
+                source: source.label,
                 destination: AppCatalog.label(for: target),
                 problem: problem
             ))
@@ -104,7 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func openExternalURL(_ url: URL) {
         if AppCatalog.isDefaultBrowser {
-            route(url, source: .current)
+            route(url, senderPID: getpid())
         } else {
             NSWorkspace.shared.open(url)
         }
