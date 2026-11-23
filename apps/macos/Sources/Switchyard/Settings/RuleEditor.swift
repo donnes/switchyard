@@ -63,7 +63,7 @@ struct RuleEditor: View {
                         if let patternError {
                             Text(patternError).foregroundStyle(.red)
                         }
-                        Text("One per line. Any of them fits. `github.com` covers its subdomains, `*://*.slack.com/client/T03/*` is a glob on the full link, `linear.app/team/*` skips the scheme, and `regex:` starts a regular expression.")
+                        Text("One per line. Any of them fits. `github.com` covers its subdomains, `github.com/acme` covers everything under it, `*` matches anything, and `regex:` starts a regular expression.")
                             .foregroundStyle(.secondary)
                     }
                 }

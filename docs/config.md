@@ -42,14 +42,16 @@ A rule fits when both `from` and `match` fit.
 
 ## URL patterns
 
-Matching ignores case.
+Matching ignores case. A pattern is a host with an optional path, and `*` matches anything, including nothing.
 
 | Pattern | Matches |
 |---|---|
-| `cloudflare.com` | No `/`, so it's a host: `cloudflare.com` and any subdomain, like `dash.cloudflare.com`. |
-| `*.cloudflare.com` | A host glob. Subdomains only, because the pattern has a `*`. |
-| `*://*.cloudflare.com/*` | Has `://`, so it's a glob on the full link. `*` matches anything, including nothing. |
-| `linear.app/acme/*` | A glob on host, path and query, without the scheme. |
+| `cloudflare.com` | `cloudflare.com` and any subdomain, like `dash.cloudflare.com`, on any path. |
+| `*.cloudflare.com` | The same. A host always covers its subdomains. |
+| `github.com/acme` | `github.com/acme` and everything under it, like `github.com/acme/repo?tab=code`. Not `github.com/acmecorp`. |
+| `github.com/acme/*` | The same. A trailing `/*` adds nothing. |
+| `play.google.com/console/*/developers/42` | `*` works anywhere in the host or path. |
+| `*://github.com/acme` | The same as without the prefix. Any other scheme, like `http://`, must match the link's. |
 | `regex:^https://github\.com/acme/` | A regular expression on the full link. |
 
 ## Targets

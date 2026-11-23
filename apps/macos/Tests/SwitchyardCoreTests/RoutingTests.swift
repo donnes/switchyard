@@ -5,18 +5,27 @@ import Testing
 private func url(_ text: String) -> URL { URL(string: text)! }
 
 @Test(arguments: [
-    // Host patterns cover subdomains.
+    // A host covers its subdomains, with or without `*.`.
     ("cloudflare.com", "https://cloudflare.com/x", true),
     ("cloudflare.com", "https://dash.cloudflare.com/x", true),
     ("cloudflare.com", "https://notcloudflare.com/", false),
-    ("*.cloudflare.com", "https://cloudflare.com/", false),
-    // Full-URL globs.
-    ("*://*.cloudflare.com/*", "https://dash.cloudflare.com/a/b", true),
-    ("*://app.slack.com/client/T0ACME000/*", "https://app.slack.com/client/T0ACME000/C1", true),
-    ("*://app.slack.com/client/T0ACME000/*", "https://app.slack.com/client/T0OTHER00/C1", false),
-    // Host and path, case-insensitive.
+    ("*.cloudflare.com", "https://cloudflare.com/", true),
+    ("*.cloudflare.com/*", "https://dash.cloudflare.com/a/b", true),
+    ("oidc.*.amazonaws.com", "https://oidc.us-east-2.amazonaws.com/authorize?client_id=x", true),
+    // A path covers itself and everything below it, with or without `/*`.
+    ("github.com/acme", "https://github.com/acme", true),
+    ("github.com/acme", "https://github.com/acme/repo/pulls", true),
+    ("github.com/acme", "https://github.com/acme?tab=repositories", true),
+    ("github.com/acme/*", "https://github.com/acme", true),
+    ("github.com/acme", "https://github.com/acmecorp", false),
+    ("github.com/acme", "https://github.com/", false),
+    ("app.slack.com/client/T0ACME000", "https://app.slack.com/client/T0ACME000/C1", true),
+    ("app.slack.com/client/T0ACME000", "https://app.slack.com/client/T0OTHER00/C1", false),
+    ("play.google.com/console/*/developers/42", "https://play.google.com/console/u/0/developers/42/app", true),
     ("linear.app/acme/*", "https://Linear.app/acme/issue/ACME-1", true),
-    ("linear.app/acme/*", "https://linear.app/other/issue", false),
+    // A scheme prefix still works: `*://` is ignored, any other must match.
+    ("*://app.slack.com/client/T0ACME000/*", "https://app.slack.com/client/T0ACME000/C1", true),
+    ("http://example.com", "https://example.com/", false),
     ("regex:^https://github\\.com/[^/]+/switchyard", "https://github.com/me/switchyard/pulls", true),
 ])
 func patternMatching(pattern: String, link: String, expected: Bool) throws {

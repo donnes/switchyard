@@ -3,16 +3,14 @@ import Foundation
 /// A compiled URL pattern. Matching is case-insensitive.
 ///
 /// - `regex:<expr>` matches the regular expression against the full URL.
-/// - A pattern with `://` is a glob (`*` = anything) against the full URL: `*://*.cloudflare.com/*`.
-/// - A pattern without `/` is a host: `cloudflare.com` matches that host and its subdomains.
-///   Globs work here too: `*.cloudflare.com`.
-/// - Anything else is a glob against host, path and query: `linear.app/acme/*`.
+/// - Anything else is `host/path`, where `*` matches anything. A host covers its subdomains,
+///   so `cloudflare.com` and `*.cloudflare.com` mean the same. A path covers everything below it,
+///   so `github.com/acme` and `github.com/acme/*` mean the same. A `*://` prefix is ignored, and
+///   any other scheme, like `http://`, must match the link's.
 public struct URLPattern {
     enum Kind {
         case regex(NSRegularExpression)
-        case fullURL([UInt8])
-        case host([UInt8], subdomains: Bool)
-        case hostAndPath([UInt8])
+        case glob(scheme: String?, host: [[UInt8]], path: [[UInt8]])
     }
 
     public let source: String
@@ -23,13 +21,25 @@ public struct URLPattern {
         let text = source.trimmingCharacters(in: .whitespaces)
         if text.hasPrefix("regex:") {
             kind = .regex(try NSRegularExpression(pattern: String(text.dropFirst(6)), options: .caseInsensitive))
-        } else if text.contains("://") {
-            kind = .fullURL(Array(text.lowercased().utf8))
-        } else if !text.contains("/") {
-            kind = .host(Array(text.lowercased().utf8), subdomains: !text.contains("*"))
-        } else {
-            kind = .hostAndPath(Array(text.lowercased().utf8))
+            return
         }
+        var rest = Substring(text.lowercased())
+        var scheme: String?
+        if let separator = rest.range(of: "://") {
+            let name = rest[..<separator.lowerBound]
+            scheme = name == "*" ? nil : String(name)
+            rest = rest[separator.upperBound...]
+        }
+        let slash = rest.firstIndex(of: "/") ?? rest.endIndex
+        var host = rest[..<slash]
+        while host.hasPrefix("*.") { host = host.dropFirst(2) }
+        var path = String(rest[slash...])
+        while path.hasSuffix("/*") || path.hasSuffix("/") { path.removeLast(path.hasSuffix("/") ? 1 : 2) }
+        kind = .glob(
+            scheme: scheme,
+            host: [String(host), "*." + host].map { Array($0.utf8) },
+            path: path.isEmpty ? [] : [path, path + "/*", path + "?*"].map { Array($0.utf8) }
+        )
     }
 
     public func matches(_ url: URL) -> Bool {
@@ -37,18 +47,16 @@ public struct URLPattern {
         case .regex(let expression):
             let text = url.absoluteString
             return expression.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
-        case .fullURL(let glob):
-            return Glob.matches(glob, Array(url.absoluteString.lowercased().utf8))
-        case .host(let glob, let subdomains):
+        case .glob(let scheme, let hostGlobs, let pathGlobs):
+            if let scheme, url.scheme?.lowercased() != scheme { return false }
             guard let host = url.host()?.lowercased() else { return false }
-            let bytes = Array(host.utf8)
-            if Glob.matches(glob, bytes) { return true }
-            return subdomains && host.hasSuffix("." + String(decoding: glob, as: UTF8.self))
-        case .hostAndPath(let glob):
-            guard let host = url.host()?.lowercased() else { return false }
-            var text = host + url.path(percentEncoded: true)
+            let hostBytes = Array(host.utf8)
+            guard hostGlobs.contains(where: { Glob.matches($0, hostBytes) }) else { return false }
+            if pathGlobs.isEmpty { return true }
+            var text = url.path(percentEncoded: true)
             if let query = url.query(percentEncoded: true) { text += "?" + query }
-            return Glob.matches(glob, Array(text.lowercased().utf8))
+            let pathBytes = Array(text.lowercased().utf8)
+            return pathGlobs.contains { Glob.matches($0, pathBytes) }
         }
     }
 }
