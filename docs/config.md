@@ -40,6 +40,8 @@ Rules are checked from the top. The first enabled rule that fits a link decides 
 
 A rule fits when both `from` and `match` fit.
 
+A link from a command-line tool, like `gh` or a script, comes from the app the tool runs in, like Terminal or a code editor. Switchyard finds that app by climbing the tool's parent processes. Tools that hand the link to `open` or `osascript` are traced only if those are still running when the link arrives, and they often quit first. Then only rules without `from` fit, and recent links show "Command-line tool".
+
 ## URL patterns
 
 Matching ignores case. A pattern is a host with an optional path, and `*` matches anything, including nothing.
