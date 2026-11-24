@@ -76,7 +76,7 @@ jobs:
   check:
     name: macOS
     needs: prepare
-    runs-on: macos-26
+    runs-on: namespace-profile-donnes
     defaults:
       run:
         working-directory: apps/macos
@@ -90,7 +90,7 @@ jobs:
   build:
     name: Build
     needs: [prepare, check]
-    runs-on: macos-26
+    runs-on: namespace-profile-donnes
     steps:
       - uses: actions/checkout@v4
         with:
