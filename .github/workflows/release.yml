@@ -31,7 +31,7 @@ concurrency:
 jobs:
   prepare:
     name: Prepare
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-donnes
     outputs:
       version: ${{ steps.plan.outputs.version }}
       previous_tag: ${{ steps.plan.outputs.previous_tag }}
@@ -134,7 +134,7 @@ jobs:
   publish:
     name: Publish
     needs: [prepare, build]
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-donnes
     permissions:
       contents: write
     steps:
